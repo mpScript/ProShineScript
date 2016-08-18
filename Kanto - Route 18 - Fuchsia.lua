@@ -15,6 +15,9 @@ moveYmin = 20
 moveYmax = 21
 moveY = moveYmin
 useSwipe = false
+checkedItem = false
+thiefItemArray = {}
+killPokemonArray = {}
 
 next_action_time = os.time() + math.random(0, 1)
 
@@ -23,7 +26,26 @@ function onPathAction()
 		log("Waiting to "..next_action_time)
 		return
 	end
-	if getPokemonHealth(1) < 20 and hasItem("Fresh Water") then
+	if not goToCenterFlag and not checkedItem then
+	log("onPathAction - checkItem")
+		checkedItem = true
+		pokemonItem = getPokemonHeldItem(1)
+		if pokemonItem then
+			for i = 1, 30 do
+				if i == 15 then
+					log("********Item stealed: " .. pokemonItem)
+				else 
+					log("**********************************************")
+				end
+			end
+			if thiefItemArray[pokemonItem] then
+				thiefItemArray[pokemonItem] = thiefItemArray[pokemonItem] + 1
+			else
+				thiefItemArray[pokemonItem] = 1
+			end
+			takeItemFromPokemon(1)
+		end
+	elseif getPokemonHealth(1) < 20 and hasItem("Fresh Water") then
 		log("Drink water...")
 		useItemOnPokemon("Fresh Water", 1)
 	elseif isPokemonUsable(1) then
@@ -51,12 +73,14 @@ function onPathAction()
 			moveToMap("Pokecenter Fuchsia")
 		elseif getMapName() == "Pokecenter Fuchsia" then
 			moveY = math.random(moveYmin, moveYmax)
+			pcVisits = pcVisits + 1
 			usePokecenter()
 		end
 	end
 end
 
 function onBattleAction()
+	checkedItem = false
 	moveY = math.random(moveYmin, moveYmax)
 	next_action_time = os.time() + math.random(3, 7)
 	log("Opponent Name: "..getOpponentName().."(lv "..getOpponentLevel()..") Health: "..getOpponentHealth().."("..getOpponentHealthPercent().."%)")
@@ -87,4 +111,63 @@ function onBattleAction()
 			return run() or attack() or sendUsablePokemon() or sendAnyPokemon()
 		end
 	end
+end
+
+
+function onStart()
+	startime = os.time()
+	pcVisits = 0
+	shinyCounter = 0
+	wildCounter = 0
+	startMoney = getMoney()
+	log("\tYou have currently " .. getMoney() .. " Pokedollars.")
+	showStatus()
+end
+
+function onPause()
+	showStatus()
+end
+
+function onStop()
+	showStatus()
+end
+
+function onResume()
+	log("******************************************************************")
+end
+
+function onBattleMessage(wild)
+	if stringContains(wild, "has fainted!") then
+		if killPokemonArray[wild] then
+			killPokemonArray[wild] = killPokemonArray[wild] + 1
+		else
+			killPokemonArray[wild] = 1
+		end
+	end
+	if stringContains(wild, "A Wild SHINY ") then
+		shinyCounter = shinyCounter + 1
+	elseif stringContains(wild, "A Wild ") then
+		wildCounter = wildCounter + 1
+	end
+end
+
+function showStatus()
+log("**********************************************************************")
+	log("\tMap name: "..getMapName())
+	log("\tPlayer: x="..getPlayerX()..", y="..getPlayerY())
+	log("\tYou have earned ".. tostring(getMoney() - startMoney) .." PokeDollars!")
+	log("\tShinies Caught: " .. shinyCounter)
+	log("\tPokemons encountered: " .. wildCounter)
+	log("\tYou have visited the PokeCenter ".. pcVisits .." times.")
+	endtime = os.time()
+	log(string.format("\tBot running time: %.2f", os.difftime(endtime,startime)/3600 ).. " hours | ".."or"..string.format("\tBot running time: %.2f", os.difftime(endtime,startime)/60 ).. " minutes")
+	log("\tYou have thief:")
+	for k, v in pairs(thiefItemArray) do
+		log(v .. "\t" .. k)
+	end
+	log("\tYou have killed:")
+	for k, v in pairs(killPokemonArray) do
+		log(v .. "\t" .. k)
+	end
+	log("------------------------------------------------------------------")
 end
